@@ -1,7 +1,7 @@
 {
     "name": "gq-aws-sdk",
     "description": "AWS SDK for JavaScript",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "author": {
       "name":"Amazon Web Services",
       "email":"",
@@ -9,7 +9,8 @@
     },
     "homepage": "https://github.com/grimurjonsson/aws-sdk-js",
     "contributors": [
-      "Grimur Jonsson <grimur@jonsson.is>"
+      "Grimur Jonsson <grimur@jonsson.is>",
+      "Skossi <thorsteinng@greenqloud.com>"
     ],
     "devDependencies": {
       "repl.history": "*",
