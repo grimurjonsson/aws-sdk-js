@@ -1,16 +1,15 @@
 {
-    "name": "aws-sdk",
+    "name": "gq-aws-sdk",
     "description": "AWS SDK for JavaScript",
-    "version": "2.2.4",
+    "version": "1.0.0",
     "author": {
       "name":"Amazon Web Services",
       "email":"",
       "url":"http://aws.amazon.com/"
     },
-    "homepage": "https://github.com/aws/aws-sdk-js",
+    "homepage": "https://github.com/grimurjonsson/aws-sdk-js",
     "contributors": [
-      "Loren Segal <lsegal@amazon.com>",
-      "Trevor Rowe <trevrowe@amazon.com>"
+      "Grimur Jonsson <grimur@jonsson.is>"
     ],
     "devDependencies": {
       "repl.history": "*",
