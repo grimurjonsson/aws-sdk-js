@@ -10,6 +10,7 @@ beforeEach ->
 
 translateInput = (input) ->
   request = docClient.put(input)
+  request.emit('validate', [request])
   request.params
 
 describe 'AWS.DynamoDB.DocumentClient', ->
@@ -27,12 +28,16 @@ describe 'AWS.DynamoDB.DocumentClient', ->
       expect(docClient.createSet(['1', '2', 'string']).type).to.equal('String')
       expect(docClient.createSet([1, 2, 3]).type).to.equal('Number')
       expect(docClient.createSet([new Buffer('foo'), new Buffer('bar')]).type).to.equal('Binary')
-  
+
+    it 'supports sets with falsy values', ->
+      expect(docClient.createSet([0]).type).to.equal('Number')
+      expect(docClient.createSet(['']).type).to.equal('String')
+
     it 'validates set elements if validate: true', ->
       expect(-> docClient.createSet([1, 2, 'string'], {validate: true})).to.throw('Number Set contains String value')
       expect(-> docClient.createSet(['string', 'string', 2], {validate: true})).to.throw('String Set contains Number value')
       expect(-> docClient.createSet([1, 2, new Buffer('foo')], {validate: true})).to.throw('Number Set contains Binary value')
-    
+
     it 'does not validate set elements if validate: true unset', ->
       expect(-> docClient.createSet([1, 2, 'string'])).to.not.throw('Number Set contains String value')
       expect(-> docClient.createSet(['string', 'string', 2])).to.not.throw('String Set contains Number value')
@@ -79,7 +84,7 @@ describe 'AWS.DynamoDB.DocumentClient', ->
           bar: S: 'string'
           baz: S: 'string'
       expect(translateInput(input)).to.eql(params)
-    
+
     it 'translates lists', ->
       buffer = new Buffer 'quux'
       input = Item: foo:
@@ -92,7 +97,7 @@ describe 'AWS.DynamoDB.DocumentClient', ->
             {B: buffer}
           ]
       expect(translateInput(input)).to.eql(params)
-    
+
     it 'translates string sets', ->
       set  = docClient.createSet ['bar', 'baz', 'quux']
       input = Item:
@@ -101,7 +106,7 @@ describe 'AWS.DynamoDB.DocumentClient', ->
         foo:
           'SS': ['bar', 'baz', 'quux']
       expect(translateInput(input)).to.eql(params)
-    
+
     it 'translates number sets', ->
       set  = docClient.createSet [1, 2, 3]
       input = Item:
@@ -580,3 +585,56 @@ describe 'AWS.DynamoDB.DocumentClient', ->
       docClient.get {Key: foo: 1}, (err, data) ->
         expect(data).to.eql(output)
         done()
+
+  describe 'response.nextPage', ->
+
+    client = null; response = null; request = null
+
+    beforeEach ->
+      client = new AWS.DynamoDB.DocumentClient({paramValidation: false})
+      request = client.query({ExpressionAttributeValues: { foo: 'bar' }})
+      response = request.response
+
+    fill = (err, data) ->
+      request.emit('validate', [request])
+      response.error = err
+      response.data = data
+
+    it 'returns null if there are no more pages', ->
+      fill(null, {})
+      expect(response.nextPage()).to.equal(null)
+
+    it 'returns a request object with the next page marker filled in params', ->
+      fill(null, LastEvaluatedKey: { fizz: 'pop' })
+      req = response.nextPage()
+      expect(req.params.ExclusiveStartKey.fizz).to.equal('pop')
+      expect(req.operation).to.equal(response.request.operation)
+
+    it 'uses untranslated params', ->
+      fill(null, LastEvaluatedKey: 'baz')
+      req = response.nextPage()
+      expect(req.params.ExpressionAttributeValues.foo).to.equal('bar')
+
+    it 'throws error if response returned an error and there is no callback', ->
+      fill(new Error('error!'), null, true)
+      expect(-> response.nextPage()).to.throw('error!')
+
+    it 'sends the request if passed with a callback', (done) ->
+      helpers.mockHttpResponse 200, {}, ['']
+      fill(null, LastEvaluatedKey: 'baz')
+      response.nextPage (err, data) ->
+        expect(err).to.equal(null)
+        expect(data).to.eql({})
+        done()
+
+    it 'passes null to callback if there are no more pages', ->
+      fill(null, {})
+      response.nextPage (err, data) ->
+        expect(err).to.equal(null)
+        expect(data).to.equal(null)
+
+    it 'passes error through if original response returned an error', ->
+      fill('error!', null)
+      response.nextPage (err, data) ->
+        expect(err).to.equal('error!')
+        expect(data).to.equal(null)

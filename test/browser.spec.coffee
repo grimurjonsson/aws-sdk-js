@@ -7,6 +7,7 @@ try
 cloudwatch = new AWS.CloudWatch(AWS.util.merge(config, config.cloudwatch))
 cloudwatchlogs = new AWS.CloudWatchLogs(AWS.util.merge(config, config.cloudwatchlogs))
 cognitoidentity = new AWS.CognitoIdentity(AWS.util.merge(config, config.cognitoidentity))
+codepipeline = new AWS.CodePipeline(AWS.util.merge(config, config.codepipeline))
 cognitosync = new AWS.CognitoSync(AWS.util.merge(config, config.cognitosync))
 devicefarm = new AWS.DeviceFarm(AWS.util.merge(config, config.devicefarm))
 dynamodb = new AWS.DynamoDB(AWS.util.merge(config, config.dynamodb))
@@ -21,7 +22,9 @@ opsworks = new AWS.OpsWorks(AWS.util.merge(config, config.opsworks))
 s3 = new AWS.S3(AWS.util.merge(config, config.s3))
 sqs = new AWS.SQS(AWS.util.merge(config, config.sqs))
 sns = new AWS.SNS(AWS.util.merge(config, config.sns))
+ssm = new AWS.SSM(AWS.util.merge(config, config.ssm))
 sts = new AWS.STS(AWS.util.merge(config, config.sts))
+waf = new AWS.WAF(AWS.util.merge(config, config.waf))
 
 uniqueName = (prefix) ->
   if prefix
@@ -140,6 +143,21 @@ integrationTests ->
       cloudwatchlogs.getLogEvents params, (err, data) ->
         assertError(err, 'ResourceNotFoundException')
         matchError(err, 'The specified log group does not exist')
+        noData(data)
+        done()
+
+  describe 'AWS.CodePipeline', ->
+    it 'makes a request', (done) ->
+      codepipeline.listPipelines {}, (err, data) ->
+        noError(err)
+        expect(Array.isArray(data.pipelines)).to.equal(true)
+        done()
+
+    it 'handles errors', (done) ->
+      params =
+        name: 'fake-pipeline'
+      codepipeline.getPipeline params, (err, data) ->
+        assertError(err, 'PipelineNotFoundException')
         noData(data)
         done()
 
@@ -455,3 +473,33 @@ integrationTests ->
           expect(data.Topics.filter((o) -> o.TopicArn == arn)).not.to.equal(null)
           sns.deleteTopic(done)
 
+  describe 'AWS.SSM', ->
+    it 'makes a request', (done) ->
+      ssm.listCommands {}, (err, data) ->
+        noError(err)
+        expect(Array.isArray(data.Commands)).to.equal(true)
+        done()
+    it 'handles errors', (done) ->
+      params =
+        Name: 'fake_name'
+      ssm.describeDocument params, (err, data) ->
+        assertError(err, 'InvalidDocument')
+        noData(data)
+        done()
+
+  describe 'AWS.WAF', ->
+    it 'makes a request', (done) ->
+      params =
+        Limit: 20
+      waf.listRules params, (err, data) ->
+        noError(err)
+        expect(Array.isArray(data.Rules)).to.equal(true)
+        done()
+    it 'handles errors', (done) ->
+      params =
+        Name: 'fake_name'
+        ChangeToken: 'fake_token'
+      waf.createSqlInjectionMatchSet params, (err, data) ->
+        assertError(err, 'WAFStaleDataException')
+        noData(data)
+        done()

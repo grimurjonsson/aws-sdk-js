@@ -103,6 +103,23 @@ s3.getObject({Bucket: 'bucket', Key: 'key'}).on('success', function(response) {
 }).send();
 ```
 
+#### The `nextPage` and `hasNextPage` methods
+
+If the data returned by a service request spans multiple pages, further pages
+can be accessed by calling `response.nextPage()`. This method will send a new
+request; its response can be captured either with a callback or with success and
+error listeners. Calling `response.hasNextPage()` will return a boolean
+indicating whether calling `response.nextPage()` could return additional data:
+
+```javascript
+s3.listObjects({Bucket: 'bucket'}).on('success', function handlePage(response) {
+  // do something with response.data
+  if (response.hasNextPage()) {
+    response.nextPage().on('success', handlePage).send();
+  }
+}).send();
+```
+
 ### Simplified Callback Method
 
 Each operation supports a simplified callback that can be passed as the last
@@ -168,7 +185,7 @@ with the serialized response data from the service.
 For example:
 
 ```javascript
-s3.listBuckets().done(function(response) {
+s3.listBuckets().on('success', function(response) {
   console.log(response.data);
 }).send();
 ```
@@ -197,7 +214,7 @@ as the first parameter to the event:
 
 ```javascript
 s3.config.credentials.accessKeyId = 'invalid';
-s3.listBuckets().fail(function(error, response) {
+s3.listBuckets().on('error', function(error, response) {
   console.log(error);
   // or:
   console.log(response.error);

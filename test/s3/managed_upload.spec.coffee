@@ -67,6 +67,23 @@ describe 'AWS.S3.ManagedUpload', ->
         expect(reqs[0].params.ContentEncoding).to.equal('encoding')
         done()
 
+    it 'can not use provided ContentMD5 for a multipart upload', (done) ->
+      send Body: bigbody, ContentMD5: 'MD5HASH', ->
+        expect(data).not.to.exist
+        expect(err.code).to.equal('InvalidDigest')
+        done()
+
+    it 'can use provided ContentMD5 for single part upload', (done) ->
+      reqs = helpers.mockResponses [
+        data: ETag: 'ETAG'
+      ]
+
+      send Body: smallbody, ContentMD5: 'MD5HASH', ->
+        expect(err).not.to.exist
+        expect(data.ETag).to.equal('ETAG')
+        expect(helpers.operationsForRequests(reqs)).to.eql ['s3.putObject']
+        done()
+
     it 'can fail a single part', ->
       reqs = helpers.mockResponses [
         data: null
@@ -239,6 +256,74 @@ describe 'AWS.S3.ManagedUpload', ->
         expect(err.code).to.equal('UploadPartFailed')
         expect(data).not.to.exist
         done()
+
+    it 'resumes multipart buffer upload if leavePartsOnError is set', (done) ->
+      reqs = helpers.mockResponses [
+        { data: UploadId: 'uploadId' }
+        { data: ETag: 'ETAG1' }
+        { error: { code: 'UploadPartFailed' }, data: null }
+        { data: ETag: 'ETAG2' }
+        { data: ETag: 'ETAG3' }
+        { data: ETag: 'ETAG4' }
+        { data: ETag: 'FINAL_ETAG', Location: 'FINAL_LOCATION' }
+        { data: {}, error: null }
+      ]
+
+      upload = new AWS.S3.ManagedUpload
+        queueSize: 1
+        leavePartsOnError: true
+        params: { Body: bigbody }
+      send {}, ->
+        expect(helpers.operationsForRequests(reqs)).to.eql [
+          's3.createMultipartUpload'
+          's3.uploadPart'
+          's3.uploadPart'
+        ]
+
+        expect(err).to.exist
+        expect(err.code).to.equal('UploadPartFailed')
+        expect(data).not.to.exist
+        send {}, ->
+          expect(helpers.operationsForRequests(reqs)).to.eql [
+            's3.createMultipartUpload'
+            's3.uploadPart'
+            's3.uploadPart'
+            's3.uploadPart'
+            's3.uploadPart'
+            's3.uploadPart'
+            's3.completeMultipartUpload'
+          ]
+          expect(err).not.to.exist
+          expect(data.ETag).to.equal('FINAL_ETAG')
+          expect(data.Location).to.equal('FINAL_LOCATION')
+          done()
+
+    it 'does not resume multipart buffer upload if leavePartsOnError is not set', (done) ->
+      reqs = helpers.mockResponses [
+        { data: UploadId: 'uploadId' }
+        { data: ETag: 'ETAG1' }
+        { error: { code: 'UploadPartFailed' }, data: null }
+        { error: new Error('ERROR'), data: null}
+      ]
+
+      upload = new AWS.S3.ManagedUpload
+        queueSize: 1
+        params: { Body: bigbody }
+      send {}, ->
+        expect(helpers.operationsForRequests(reqs)).to.eql [
+          's3.createMultipartUpload'
+          's3.uploadPart'
+          's3.uploadPart'
+          's3.abortMultipartUpload'
+        ]
+
+        expect(err).to.exist
+        expect(err.code).to.equal('UploadPartFailed')
+        expect(data).not.to.exist
+        send {}, ->
+          expect(err).to.exist
+          expect(data).not.to.exist
+          done()
 
     if AWS.util.isNode()
       describe 'streaming', ->

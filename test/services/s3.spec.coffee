@@ -307,6 +307,7 @@ describe 'AWS.S3', ->
       resp = new AWS.Response(req)
       resp.httpResponse.body = new Buffer(body || '')
       resp.httpResponse.statusCode = statusCode
+      resp.httpResponse.headers = {'x-amz-request-id': 'RequestId', 'x-amz-id-2': 'ExtendedRequestId'}
       req.emit('extractError', [resp])
       resp.error
 
@@ -330,6 +331,22 @@ describe 'AWS.S3', ->
       expect(error.code).to.equal('NotFound')
       expect(error.message).to.equal(null)
 
+    it 'extracts the region', ->
+      body = """
+        <Error>
+          <Code>InvalidArgument</Code>
+          <Message>Provided param is bad</Message>
+          <Region>eu-west-1</Region>
+        </Error>
+        """
+      error = extractError(400, body)
+      expect(error.region).to.equal('eu-west-1')
+
+    it 'extracts the request ids', ->
+      error = extractError(400)
+      expect(error.requestId).to.equal('RequestId')
+      expect(error.extendedRequestId).to.equal('ExtendedRequestId')
+
     it 'misc errors not known to return an empty body', ->
       error = extractError(412) # made up
       expect(error.code).to.equal(412)
@@ -345,6 +362,15 @@ describe 'AWS.S3', ->
       error = extractError(403, body)
       expect(error.code).to.equal('ErrorCode')
       expect(error.message).to.equal('ErrorMessage')
+
+  describe 'retryableError', ->
+
+    it 'should retry on authorization header with updated region', ->
+      err = {code: 'AuthorizationHeaderMalformed', statusCode:400, region: "eu-west-1"}
+      req = request()
+      retryable = s3.retryableError(err, req)
+      expect(retryable).to.equal(true)
+      expect(req.httpRequest.region).to.equal("eu-west-1")
 
   # tests from this point on are "special cases" for specific aws operations
 
@@ -553,12 +579,14 @@ describe 'AWS.S3', ->
       willCompute 'deleteObjects', computeChecksums: true
       willCompute 'putBucketCors', computeChecksums: true
       willCompute 'putBucketLifecycle', computeChecksums: true
+      willCompute 'putBucketLifecycleConfiguration', computeChecksums: true
       willCompute 'putBucketTagging', computeChecksums: true
 
     it 'computes checksums if computeChecksums is off and operation requires it', ->
       willCompute 'deleteObjects', computeChecksums: false
       willCompute 'putBucketCors', computeChecksums: false
       willCompute 'putBucketLifecycle', computeChecksums: false
+      willCompute 'putBucketLifecycleConfiguration', computeChecksums: false
       willCompute 'putBucketTagging', computeChecksums: false
 
     it 'does not compute checksums if computeChecksums is off', ->
@@ -586,7 +614,7 @@ describe 'AWS.S3', ->
       it 'opens separate stream if a file object is provided', (done) ->
         hash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
         helpers.mockResponse data: ETag: 'etag'
-        
+
         fs = require('fs')
         mock = helpers.spyOn(fs, 'createReadStream').andCallFake ->
           tr = new Stream.Transform
@@ -642,6 +670,10 @@ describe 'AWS.S3', ->
       url = s3.getSignedUrl('putObject', Bucket: 'bucket', Key: 'key')
       expect(url).to.equal('https://bucket.s3.amazonaws.com/key?AWSAccessKeyId=akid&Expires=900&Signature=J%2BnWZ0lPUfLV0kio8ONhJmAttGc%3D&x-amz-security-token=session')
 
+    it 'gets a signed URL for putObject with Metadata', ->
+      url = s3.getSignedUrl('putObject', Bucket: 'bucket', Key: 'key', Metadata: {someKey: 'someValue'})
+      expect(url).to.equal('https://bucket.s3.amazonaws.com/key?AWSAccessKeyId=akid&Expires=900&Signature=5Lcbv0WLGWseQhtmNQ8WwIpX6Kw%3D&x-amz-meta-somekey=someValue&x-amz-security-token=session')
+
     it 'gets a signed URL for putObject with special characters', ->
       url = s3.getSignedUrl('putObject', Bucket: 'bucket', Key: '!@#$%^&*();\':"{}[],./?`~')
       expect(url).to.equal('https://bucket.s3.amazonaws.com/%21%40%23%24%25%5E%26%2A%28%29%3B%27%3A%22%7B%7D%5B%5D%2C./%3F%60~?AWSAccessKeyId=akid&Expires=900&Signature=9nEltJACZKsriZqU2cmRel6g8LQ%3D&x-amz-security-token=session')
@@ -649,6 +681,12 @@ describe 'AWS.S3', ->
     it 'gets a signed URL for putObject with a body (and checksum)', ->
       url = s3.getSignedUrl('putObject', Bucket: 'bucket', Key: 'key', Body: 'body')
       expect(url).to.equal('https://bucket.s3.amazonaws.com/key?AWSAccessKeyId=akid&Content-MD5=hBotaJrYa9FhFEdFPCLG%2FA%3D%3D&Expires=900&Signature=4ycA2tpHKxfFnNCdqnK1d5BG8gc%3D&x-amz-security-token=session')
+
+    it 'gets a signed URL for putObject with CacheControl', ->
+      s3 = new AWS.S3
+        signatureVersion: 'v4'
+      url = s3.getSignedUrl('putObject', Bucket: 'bucket', Key: 'key', CacheControl: 'max-age=10000')
+      expect(url).to.equal('https://bucket.s3.mock-region.amazonaws.com/key?Cache-Control=max-age%3D10000&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=akid%2F19700101%2Fmock-region%2Fs3%2Faws4_request&X-Amz-Date=19700101T000000Z&X-Amz-Expires=900&X-Amz-Security-Token=session&X-Amz-Signature=39ad1f8dc3aa377c2b184a0be7657dfb606628c74796c1a48394ef134ff6233a&X-Amz-SignedHeaders=cache-control%3Bhost')
 
     it 'gets a signed URL and appends to existing query parameters', ->
       url = s3.getSignedUrl('listObjects', Bucket: 'bucket', Prefix: 'prefix')

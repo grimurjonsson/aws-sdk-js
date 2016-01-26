@@ -4,16 +4,17 @@
 
 ## Supported Services
 
-By default, the SDK ships with support for 15 AWS services. Each service object
+By default, the SDK ships with support for 23 AWS services. Each service object
 in the SDK currently provides low-level access to every API call in the
 respective AWS service. The full list of methods and their parameters are
 documented in the complete API reference documentation (linked from each
 service name in the list below).
 
-The 18 services that come with the default hosted package of the SDK are:
+The 23 services that come with the default hosted package of the SDK are:
 
 * [AWS.CloudWatch](/AWSJavaScriptSDK/latest/AWS/CloudWatch.html)
 * [AWS.CloudWatchLogs](/AWSJavaScriptSDK/latest/AWS/CloudWatchLogs.html)
+* [AWS.CodePipeline](/AWSJavaScriptSDK/latest/AWS/CodePipeline.html)
 * [AWS.CognitoIdentity](/AWSJavaScriptSDK/latest/AWS/CognitoIdentity.html)
 * [AWS.CognitoSync](/AWSJavaScriptSDK/latest/AWS/CognitoSync.html)
 * [AWS.DeviceFarm](/AWSJavaScriptSDK/latest/AWS/DeviceFarm.html)
@@ -21,15 +22,19 @@ The 18 services that come with the default hosted package of the SDK are:
 * [AWS.DynamoDBStreams](/AWSJavaScriptSDK/latest/AWS/DynamoDBStreams.html)
 * [AWS.EC2](/AWSJavaScriptSDK/latest/AWS/EC2.html)
 * [AWS.ElasticTranscoder](/AWSJavaScriptSDK/latest/AWS/ElasticTranscoder.html)
+* [AWS.Firehose](/AWSJavaScriptSDK/latest/AWS/Firehose.html)
 * [AWS.Kinesis](/AWSJavaScriptSDK/latest/AWS/Kinesis.html)
 * [AWS.Lambda](/AWSJavaScriptSDK/latest/AWS/Lambda.html)
+* [AWS.MarketplaceCommerceAnalytics](/AWSJavaScriptSDK/latest/AWS/MarketplaceCommerceAnalytics.html)
 * [AWS.MobileAnalytics](/AWSJavaScriptSDK/latest/AWS/MobileAnalytics.html)
 * [AWS.MachineLearning](/AWSJavaScriptSDK/latest/AWS/MachineLearning.html)
 * [AWS.OpsWorks](/AWSJavaScriptSDK/latest/AWS/OpsWorks.html)
 * [AWS.S3](/AWSJavaScriptSDK/latest/AWS/S3.html)
 * [AWS.SNS](/AWSJavaScriptSDK/latest/AWS/SNS.html)
 * [AWS.SQS](/AWSJavaScriptSDK/latest/AWS/SQS.html)
+* [AWS.SSM](/AWSJavaScriptSDK/latest/AWS/SSM.html)
 * [AWS.STS](/AWSJavaScriptSDK/latest/AWS/STS.html)
+* [AWS.WAF](/AWSJavaScriptSDK/latest/AWS/WAF.html)
 
 <div class="clear"></div>
 
