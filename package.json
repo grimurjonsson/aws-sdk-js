@@ -10,6 +10,7 @@
     "homepage": "https://github.com/grimurjonsson/aws-sdk-js",
     "contributors": [
       "Grimur Jonsson <grimur@jonsson.is>",
+      "runarberg <runarberg@zoho.com>",
       "Skossi <thorsteinng@greenqloud.com>"
     ],
     "devDependencies": {
